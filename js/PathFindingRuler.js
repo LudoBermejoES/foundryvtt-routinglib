@@ -14,6 +14,20 @@
  */
 "use strict"
 
+// Helper function to get ruler states (v13 compatibility)
+function getRulerStates() {
+	if (typeof Ruler !== 'undefined' && Ruler.STATES) {
+		return Ruler.STATES;
+	}
+	// Fallback constants for v13 compatibility
+	return {
+		INACTIVE: 0,
+		STARTING: 1,
+		MEASURING: 2,
+		MOVING: 3
+	};
+}
+
 class Config
 {
 	constructor()
@@ -91,7 +105,8 @@ class PathfindingRuler
 
 		Hooks.on("canvasReady", () => {
 			canvas.stage.on("mousemove", (event) => this.mousemoveListener(event));
-			this.ruler = canvas.controls._rulers[game.user._id];
+			// v13 compatibility: Use single ruler instead of ruler collection
+			this.ruler = canvas.controls.ruler;
 		});
 	}
 	
@@ -145,7 +160,8 @@ class PathfindingRuler
 	{
 		let newruler = this.ruler;
 		let endpoint = this.convertGridspaceToLocation(this.endpoint);
-		newruler._state = 2;
+		// v13 compatibility: Use getRulerStates() instead of hardcoded state
+		newruler._state = getRulerStates().MEASURING;
 		newruler.waypoints = this.waypoints.splice(0);
 		newruler.destination = new PIXI.Point(endpoint.x,endpoint.y);
 		while ( newruler.waypoints.length > newruler.labels.children.length) 
@@ -153,7 +169,11 @@ class PathfindingRuler
 			newruler.labels.addChild(new PreciseText("", CONFIG.canvasTextStyle));
 		}
 		newruler.class = "Ruler";
-		this.ruler.update(newruler.toJSON());
+		// v13 compatibility: Use _getMeasurementData() if available, fallback to toJSON()
+		const measurementData = typeof newruler._getMeasurementData === 'function' 
+			? newruler._getMeasurementData() 
+			: newruler.toJSON();
+		this.ruler.update(measurementData);
 	}
 	
 	removeRuler()

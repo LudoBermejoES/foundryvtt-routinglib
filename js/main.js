@@ -1,6 +1,7 @@
 import {initializeBackground, createAsyncPathfinder, cancelJob} from "./background.js";
-import {cache, GriddedCache, initializeCaches, wipeCaches, enableDebugForPositions, disableDebug, debugNarrowPassages, debugHorizontalBarrier, debugSummary, pixelToGrid, gridToPixel, analyzeWalls, findWallsInArea} from "./cache.js";
+import {cache, GriddedCache, initializeCaches, wipeCaches, enableDebugForPositions, disableDebug, debugNarrowPassages, debugHorizontalBarrier, debugSummary, analyzeWalls, findWallsInArea, setDebugEnabled, initializeDebugConfig} from "./cache.js";
 import {GriddedPathfinder, GridlessPathfinder} from "./pathfinder.js";
+import {coordinateHelper, pixelToGrid, gridToPixel, pixelPosToGrid, gridPosToPixel} from "./coordinate_helper.js";
 
 import initGridlessPathfinding from "../wasm/gridless_pathfinding.js";
 import {getAltOrientationFlagForToken, getHexTokenSize, isModuleActive} from "./util.js";
@@ -44,12 +45,31 @@ function initializePathfinder(from, to, options) {
 	tokenData.elevation = elevation;
 
 	const levelIndex = cache.getLevelIndexForElevation(elevation);
+	
+	// Only show debug info if debug logging is enabled
+	const debugEnabled = game?.settings?.get("routinglib", "enableDebugLogging") ?? false;
+	if (debugEnabled) {
+		console.log(`[RoutingLib] DEBUG: canvas.grid.type = ${canvas.grid.type}, CONST.GRID_TYPES =`, CONST.GRID_TYPES);
+		console.log(`[RoutingLib] DEBUG: canvas.grid.size = ${canvas.grid.size}`);
+		console.log(`[RoutingLib] DEBUG: canvas.scene.grid =`, canvas.scene.grid);
+		console.log(`[RoutingLib] DEBUG: canvas.grid =`, canvas.grid);
+	}
+	
 	if (canvas.grid.type === CONST.GRID_TYPES.GRIDLESS) {
+		if (debugEnabled) {
+			console.log(`[RoutingLib] Using GridlessPathfinder`);
+		}
 		const tokenSize = Math.max(tokenData.width, tokenData.height);
 		const graph = cache.getGraphFor(tokenSize, levelIndex, elevation);
 		return new GridlessPathfinder(graph, from, to, options);
 	} else {
+		if (debugEnabled) {
+			console.log(`[RoutingLib] Using GriddedPathfinder with sizeIndex calculation`);
+		}
 		const sizeIndex = GriddedCache.getSnapPointIndexForTokenData(tokenData);
+		if (debugEnabled) {
+			console.log(`[RoutingLib] Calculated sizeIndex=${sizeIndex}, levelIndex=${levelIndex}`);
+		}
 		return new GriddedPathfinder(sizeIndex, levelIndex, from, to, token, tokenData, options);
 	}
 }
@@ -89,6 +109,21 @@ Hooks.once("init", async () => {
 			}
 		},
 	});
+
+	game.settings.register("routinglib", "enableDebugLogging", {
+		name: "Enable Debug Logging",
+		hint: "Enable detailed debug logging for pathfinding operations. Warning: This can generate a lot of console output.",
+		scope: "client",
+		config: true,
+		type: Boolean,
+		default: false,
+		onChange: (value) => {
+			// Update the debug configuration when setting changes
+			if (window.routinglib && window.routinglib.setDebugEnabled) {
+				window.routinglib.setDebugEnabled(value);
+			}
+		}
+	});
 });
 
 Hooks.once("ready", async () => {
@@ -105,6 +140,9 @@ function initializeIfReady() {
 	if (!foundryReady || !wasmReady) return;
 	initializeCaches();
 	initializeBackground();
+	
+	// Initialize debug configuration from Foundry setting
+	initializeDebugConfig();
 
 	// ────────────────────────────
 	//  Fancy banner so users (and devs) know RoutingLib is active
@@ -126,7 +164,7 @@ function initializeIfReady() {
 	// eslint-disable-next-line no-console
 	console.log(`%c${banner}`, "color:#4caf50; font-family:monospace;");
 	// eslint-disable-next-line no-console
-	console.log(`%cRoutingLib v${version}  build ${BUILD_ID} loaded`, "color:#4caf50; font-family:monospace;");
+	console.log(`%cRoutingLib v${version}  build ${BUILD_ID} loadedx`, "color:#4caf50; font-family:monospace;");
 
 	window.routinglib = {
 		calculatePath, 
@@ -138,11 +176,19 @@ function initializeIfReady() {
 		debugNarrowPassages,
 		debugHorizontalBarrier,
 		debugSummary,
-		// Coordinate and wall analysis
+		setDebugEnabled,
+		// Coordinate helper (centralized coordinate system)
+		coordinateHelper,
+		// Legacy coordinate functions (backward compatibility)
 		pixelToGrid,
 		gridToPixel,
+		pixelPosToGrid,
+		gridPosToPixel,
+		// Wall analysis
 		analyzeWalls,
-		findWallsInArea
+		findWallsInArea,
+		// Cache management (for debugging)
+		wipeCaches
 	};
 
 	Hooks.on("canvasInit", wipeCaches);
@@ -157,8 +203,10 @@ function initializeIfReady() {
 	// cache from the previous grid resolution can lead to phantom blockers.
 	Hooks.on("updateScene", (scene, diff) => {
 		if (diff.grid || diff.gridSize || diff.gridType) {
-			// eslint-disable-next-line no-console
-			console.log("[RoutingLib] Grid settings changed – rebuilding caches");
+			const debugEnabled = game?.settings?.get("routinglib", "enableDebugLogging") ?? false;
+			if (debugEnabled) {
+				console.log("[RoutingLib] Grid settings changed – rebuilding caches");
+			}
 			wipeCaches();        // drops all graphs immediately
 			initializeCaches();  // rebuild for the new grid
 		}

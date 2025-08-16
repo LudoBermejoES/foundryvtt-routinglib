@@ -1,12 +1,12 @@
 import {resetJobs} from "./background.js";
-import {getPixelsFromGridPositionObj} from "./foundry_fixes.js";
 import {getSnapPointForTokenDataObj, isModuleActive} from "./util.js";
+import {coordinateHelper} from "./coordinate_helper.js";
 
 import * as GridlessPathfinding from "../wasm/gridless_pathfinding.js";
 
 // Debug configuration
 const DEBUG_CONFIG = {
-	enabled: false, // Master debug toggle - DISABLED for production
+	enabled: false, // Master debug toggle - DISABLED by default for production
 	verboseCollision: false, // Detailed collision detection logs - too noisy
 	graphConstruction: false, // Graph building logs
 	specificPositions: [], // Array of {x, y} positions to debug specifically - if empty, debugs all
@@ -16,6 +16,34 @@ const DEBUG_CONFIG = {
 	blockedMovements: false, // Always show when movements are blocked
 	allowedMovements: false // Show when movements are allowed (can be noisy)
 };
+
+// Function to initialize debug configuration from Foundry setting
+export function initializeDebugConfig() {
+	if (typeof game !== 'undefined' && game.settings) {
+		const enabled = game.settings.get("routinglib", "enableDebugLogging");
+		DEBUG_CONFIG.enabled = enabled;
+		if (enabled) {
+			console.log("[RoutingLib] Debug logging enabled via Foundry setting");
+		}
+	}
+}
+
+// Export function to enable/disable debug logging
+export function setDebugEnabled(enabled) {
+	DEBUG_CONFIG.enabled = enabled;
+	if (enabled) {
+		console.log("[RoutingLib] Debug logging enabled");
+	} else {
+		console.log("[RoutingLib] Debug logging disabled");
+	}
+}
+
+// Helper function for debug logging - only logs if debug is enabled
+function debugLog(...args) {
+	if (DEBUG_CONFIG.enabled) {
+		console.log(...args);
+	}
+}
 
 // Helper function to check if debugging is enabled for a specific position
 function shouldDebugPosition(from, to) {
@@ -114,19 +142,17 @@ export function debugSummary() {
 }
 
 // Export function to convert pixel coordinates to grid coordinates
+// Now uses centralized coordinate helper for consistency
 export function pixelToGrid(pixelX, pixelY) {
-	const offset = canvas.grid.getOffset({x: pixelX, y: pixelY});
-	const gridX = offset.i;
-	const gridY = offset.j;
-	console.log(`[RoutingLib] Pixel (${pixelX}, ${pixelY}) → Grid (${gridX}, ${gridY})`);
-	return {x: gridX, y: gridY};
+	coordinateHelper.setDebugEnabled(DEBUG_CONFIG.enabled);
+	return coordinateHelper.pixelToGrid(pixelX, pixelY);
 }
 
 // Export function to convert grid coordinates to pixel coordinates  
+// Now uses centralized coordinate helper for consistency
 export function gridToPixel(gridX, gridY) {
-	const centerPoint = canvas.grid.getCenterPoint({i: gridX, j: gridY});
-	console.log(`[RoutingLib] Grid (${gridX}, ${gridY}) → Pixel (${centerPoint.x}, ${centerPoint.y})`);
-	return {x: centerPoint.x, y: centerPoint.y};
+	coordinateHelper.setDebugEnabled(DEBUG_CONFIG.enabled);
+	return coordinateHelper.gridToPixel(gridX, gridY);
 }
 
 // Export function to analyze all walls and show their grid coordinates
@@ -138,16 +164,9 @@ export function analyzeWalls() {
 		const startPixel = {x: wall.document.c[0], y: wall.document.c[1]};
 		const endPixel = {x: wall.document.c[2], y: wall.document.c[3]};
 		
-		const startOffset = canvas.grid.getOffset({x: startPixel.x, y: startPixel.y});
-		const startGrid = {
-			x: startOffset.i,
-			y: startOffset.j
-		};
-		const endOffset = canvas.grid.getOffset({x: endPixel.x, y: endPixel.y});
-		const endGrid = {
-			x: endOffset.i, 
-			y: endOffset.j
-		};
+		// FIXED: Use simple division instead of getOffset() 
+		const startGrid = pixelToGrid(startPixel.x, startPixel.y);
+		const endGrid = pixelToGrid(endPixel.x, endPixel.y);
 		
 		return {
 			index,
@@ -185,15 +204,14 @@ export function findWallsInArea(minX, minY, maxX, maxY) {
 	console.log(`[RoutingLib] === WALLS IN AREA (${minX},${minY}) to (${maxX},${maxY}) ===`);
 	
 	const walls = canvas.walls.placeables.filter(wall => {
-		const startOffset = canvas.grid.getOffset({x: wall.document.c[0], y: wall.document.c[1]});
+		// FIXED: Use consistent coordinate conversion like pixelToGrid()
 		const startGrid = {
-			x: startOffset.i,
-			y: startOffset.j
+			x: Math.floor(wall.document.c[0] / canvas.grid.size),
+			y: Math.floor(wall.document.c[1] / canvas.grid.size)
 		};
-		const endOffset = canvas.grid.getOffset({x: wall.document.c[2], y: wall.document.c[3]});
 		const endGrid = {
-			x: endOffset.i,
-			y: endOffset.j
+			x: Math.floor(wall.document.c[2] / canvas.grid.size),
+			y: Math.floor(wall.document.c[3] / canvas.grid.size)
 		};
 		
 		// Check if wall intersects the area
@@ -209,16 +227,9 @@ export function findWallsInArea(minX, minY, maxX, maxY) {
 	walls.forEach((wall, i) => {
 		const startPixel = {x: wall.document.c[0], y: wall.document.c[1]};
 		const endPixel = {x: wall.document.c[2], y: wall.document.c[3]};
-		const startOffset = canvas.grid.getOffset({x: startPixel.x, y: startPixel.y});
-		const startGrid = {
-			x: startOffset.i,
-			y: startOffset.j
-		};
-		const endOffset = canvas.grid.getOffset({x: endPixel.x, y: endPixel.y});
-		const endGrid = {
-			x: endOffset.i,
-			y: endOffset.j
-		};
+		// FIXED: Use consistent coordinate conversion like pixelToGrid()
+		const startGrid = pixelToGrid(startPixel.x, startPixel.y);
+		const endGrid = pixelToGrid(endPixel.x, endPixel.y);
 		
 		console.log(`  ${i}: Grid (${startGrid.x},${startGrid.y}) to (${endGrid.x},${endGrid.y}) | Pixels (${startPixel.x},${startPixel.y}) to (${endPixel.x},${endPixel.y})`);
 	});
@@ -304,18 +315,21 @@ export class GriddedCache extends Cache {
 	}
 
 	getInitializedNode(pos, sizeIndex, levelIndex, tokenData) {
+		debugLog(`[RoutingLib] CACHE: getInitializedNode called for (${pos.x}, ${pos.y}), sizeIndex=${sizeIndex}, levelIndex=${levelIndex}`);
 		let sizeGraphs = this.graphs[sizeIndex];
-		if (!sizeGraphs) {
+		if (!sizeGraphs) { 
 			sizeGraphs = [];
 			this.graphs[sizeIndex] = sizeGraphs;
 		}
 		let graph = sizeGraphs[levelIndex];
 		if (!graph) {
+			debugLog(`[RoutingLib] CACHE: Creating new graph for sizeIndex=${sizeIndex}, levelIndex=${levelIndex}`);
 			graph = this.makeEmptyGraph();
 			sizeGraphs[levelIndex] = graph;
 		}
 		let node = graph[pos.y][pos.x];
 		if (!node) {
+			debugLog(`[RoutingLib] CACHE: Building node at (${pos.x}, ${pos.y})`);
 			const neighbors = [];
 			
 			// Get adjacent positions using proper grid API
@@ -349,6 +363,10 @@ export class GriddedCache extends Cache {
 					continue;
 				}
 				
+				// TEMP DEBUG: Log all collision checks during graph building  
+				if (pos.x >= 78 && pos.x <= 88 && pos.y >= 161 && pos.y <= 163) {
+					debugLog(`[RoutingLib] CACHE BUILD: Checking collision (${pos.x},${pos.y}) → (${neighborPos.x},${neighborPos.y})`);
+				}
 				if (!stepCollidesWithWall(pos, neighborPos, tokenData, true)) {
 					const isDiagonal =
 						pos.x !== neighborPos.x &&
@@ -453,8 +471,14 @@ function detectLevels() {
 
 export function stepCollidesWithWall(from, to, tokenData, adjustPos = false) {
 	// Return values: false = free movement, true = blocked, "squeeze" = movement allowed but at double cost
-	const stepStart = getSnapPointForTokenDataObj(getPixelsFromGridPositionObj(from), tokenData);
-	const stepEnd = getSnapPointForTokenDataObj(getPixelsFromGridPositionObj(to), tokenData);
+	// FIXED: Use consistent coordinate conversion like pixelToGrid/gridToPixel
+	const stepStart = getSnapPointForTokenDataObj(gridToPixel(from.x, from.y), tokenData);
+	const stepEnd = getSnapPointForTokenDataObj(gridToPixel(to.x, to.y), tokenData);
+	
+	// TEMP DEBUG: Always log collision checks in our test area
+	if (adjustPos && from.x >= 78 && from.x <= 88 && from.y >= 161 && from.y <= 163) {
+		debugLog(`[RoutingLib] COLLISION: (${from.x},${from.y}) → (${to.x},${to.y}) | Pixels: (${stepStart.x},${stepStart.y}) → (${stepEnd.x},${stepEnd.y})`);
+	}
 	// Using an adjusted position 1 pixel away from the center of the grid
 	// prevents the path from leaving that square if a wall is dead-center.
 	// This matches the original implementation.

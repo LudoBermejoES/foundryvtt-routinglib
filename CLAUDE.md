@@ -124,3 +124,4 @@ calculatePathBlocking(from, to, options)   // Blocking
 - WASM provides significant performance boost for complex pathfinding
 - Cache effectiveness is critical - monitor cache hit rates
 - Background processing prevents UI blocking
+- to memorize

@@ -1,6 +1,6 @@
 import {cache, stepCollidesWithWall} from "./cache.js";
 import {PriorityQueueSet} from "./data_structures.js";
-import {getCenterFromGridPositionObj} from "./foundry_fixes.js";
+
 import {
 	applyOffset,
 	buildOffset,
@@ -23,7 +23,6 @@ export class GriddedPathfinder {
 		this.startCost = 0; // TODO Allow specifying a start cost
 		this.interpolate = options.interpolate ?? true;
 		this.maxDistance = options.maxDistance ?? Infinity;
-		this.maxDistance = Math.round(this.maxDistance / canvas.scene.dimensions.distance);
 		this.ignoreTerrain = options.ignoreTerrain ?? false;
 		this.reset();
 	}
@@ -35,8 +34,6 @@ export class GriddedPathfinder {
 			node => node.estimated,
 		);
 		this.previousNodes = new Set();
-		this.gridWidth = Math.ceil(canvas.dimensions.width / canvas.grid.sizeX);
-		this.gridHeight = Math.ceil(canvas.dimensions.height / canvas.grid.sizeY);
 		this.startNode = cache.getInitializedNode(
 			this.startPos,
 			this.sizeIndex,
@@ -53,7 +50,6 @@ export class GriddedPathfinder {
 		// Debug logging for pathfinding setup - DISABLED for production
 		// console.log(`[RoutingLib] Pathfinding from (${this.startPos.x},${this.startPos.y}) to (${this.targetPos.x},${this.targetPos.y})`);
 		// console.log(`[RoutingLib] Start node has ${this.startNode.neighbors.length} neighbors`);
-		// console.log(`[RoutingLib] Grid dimensions: ${this.gridWidth}x${this.gridHeight}`);
 	}
 
 	step() {
@@ -112,8 +108,8 @@ export class GriddedPathfinder {
 			const dstCell = applyOffset(srcCell, offset);
 			// TODO Cache the result of source->destination measurements to speed up the pathfinding for large tokens
 			const ray = new foundry.canvas.geometry.Ray(
-				getCenterFromGridPositionObj(srcCell),
-				getCenterFromGridPositionObj(dstCell),
+				this.token.getCenterPoint({x: srcCell.x, y: srcCell.y}),
+				this.token.getCenterPoint({x: dstCell.x, y: dstCell.y}),
 			);
 			const options = {};
 			let halfStep = previousDistance % 1;
