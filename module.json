@@ -12,13 +12,17 @@
 			"name": "Manuel Vögele",
 			"email": "develop@manuel-voegele.de",
 			"discord": "Stäbchenfisch#5107"
+		},
+		{
+			"name": "Ludo Bermejo",
+			"email": "ludobermejo@gmail.com"
 		}
 	],
 	"esmodules": ["js/main.js"],
-	"url": "https://github.com/Terrox/foundryvtt-routinglib",
-	"download": "https://github.com/Terrox/foundryvtt-routinglib/releases/download/develop/routinglib-1-1-1.zip",
-	"manifest": "https://raw.githubusercontent.com/Terrox/foundryvtt-routinglib/master/module.json",
-	"readme": "https://github.com/manuelVo/foundryvtt-routinglib/blob/master/README.md",
-	"changelog": "https://github.com/Terrox/foundryvtt-routinglib/blob/develop/CHANGELOG.md",
-	"bugs": "https://github.com/manuelVo/foundryvtt-routinglib/issues"
+	"url": "https://github.com/LudoBermejoES/foundryvtt-routinglib",
+	"download": "https://github.com/LudoBermejoES/foundryvtt-routinglib/releases/latest/download/routinglib.zip",
+	"manifest": "https://raw.githubusercontent.com/LudoBermejoES/foundryvtt-routinglib/main/module.json",
+	"readme": "https://github.com/LudoBermejoES/foundryvtt-routinglib/blob/main/README.md",
+	"changelog": "https://github.com/LudoBermejoES/foundryvtt-routinglib/blob/main/CHANGELOG.md",
+	"bugs": "https://github.com/LudoBermejoES/foundryvtt-routinglib/issues"
 }
