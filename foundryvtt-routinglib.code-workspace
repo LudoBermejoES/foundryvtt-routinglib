@@ -1,0 +1,14 @@
+{
+	"folders": [
+		{
+			"path": "."
+		},
+		{
+			"path": "../routing-token"
+		},
+		{
+			"path": "../aeris-tokens"
+		}
+	],
+	"settings": {}
+}

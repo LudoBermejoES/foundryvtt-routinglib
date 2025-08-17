@@ -279,13 +279,13 @@ class PathfindingRuler
 				let ret = [];
 				while(current.parent)
 				{
-					let loc = [current.x, current.y];
-					loc = this.convertGridspaceToLocation(loc);
+					let gridLoc = [current.x, current.y];
+					let loc = this.convertGridspaceToLocation(gridLoc);
 					ret.push(loc);
 					current = current.parent;
 				}
 				this.waypoints = [];
-				origin = this.convertGridspaceToLocation(this.origin);
+				let origin = this.convertGridspaceToLocation(this.origin);
 				ret.push(origin);
 				this.pruneWaypoints(ret);
 				for (let i=ret.length-1;i>0;i--)

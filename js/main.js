@@ -1,5 +1,5 @@
 import {initializeBackground, createAsyncPathfinder, cancelJob} from "./background.js";
-import {cache, GriddedCache, initializeCaches, wipeCaches, enableDebugForPositions, disableDebug, debugNarrowPassages, debugHorizontalBarrier, debugSummary, analyzeWalls, findWallsInArea, setDebugEnabled, initializeDebugConfig} from "./cache.js";
+import {cache, GriddedCache, initializeCaches, wipeCaches, enableDebugForPositions, disableDebug, debugNarrowPassages, debugHorizontalBarrier, debugSummary, analyzeWalls, findWallsInArea, setDebugEnabled, initializeDebugConfig, stepCollidesWithWall} from "./cache.js";
 import {GriddedPathfinder, GridlessPathfinder} from "./pathfinder.js";
 import {coordinateHelper, pixelToGrid, gridToPixel, pixelPosToGrid, gridPosToPixel} from "./coordinate_helper.js";
 
@@ -188,7 +188,9 @@ function initializeIfReady() {
 		analyzeWalls,
 		findWallsInArea,
 		// Cache management (for debugging)
-		wipeCaches
+		wipeCaches,
+		// Collision detection
+		stepCollidesWithWall
 	};
 
 	Hooks.on("canvasInit", wipeCaches);

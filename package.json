@@ -5,6 +5,7 @@
   ],
   "devDependencies": {
     "@league-of-foundry-developers/foundry-vtt-types": "^13.345.1",
-    "@typhonjs-fvtt/eslint-config-foundry.js": "^0.8.0"
+    "@typhonjs-fvtt/eslint-config-foundry.js": "^0.8.0",
+    "typescript": "^5.9.2"
   }
 }
